@@ -1,6 +1,18 @@
 #include <iostream>
 #include <windows.h>
 #include <stdlib.h>
+#include <detour/include/detours.h>
+#include <glfw/include/GLFW/glfw3.h>
+
+static void (GLFWAPI * TrueSwapBuffers)(GLFWwindow * window) = glfwSwapBuffers;
+
+void DetouredSwapBuffers(
+	GLFWwindow* window)
+{
+	OutputDebugString(L"DetouredSwapBuffers in Controller.\n");
+
+	TrueSwapBuffers(window);
+}
 
 BOOL WINAPI DllMain(
 	HINSTANCE hinstDLL,
@@ -9,11 +21,24 @@ BOOL WINAPI DllMain(
 {
 	OutputDebugString(L"DllMain called.\n");
 
+	if (DetourIsHelperProcess()) {
+		return TRUE;
+	}
+
 	switch (fdwReason)
 	{
 	case DLL_PROCESS_ATTACH:
 
 		OutputDebugString(L"DLL_PROCESS_ATTACH in DllMain.\n");
+
+		DetourRestoreAfterWith();
+
+		DetourTransactionBegin();
+		DetourUpdateThread(GetCurrentThread());
+		DetourAttach(&(PVOID&)TrueSwapBuffers, DetouredSwapBuffers);
+		DetourTransactionCommit();
+
+		OutputDebugString(L"DetourAttach completed.\n");
 
 		break;
 
@@ -24,21 +49,16 @@ BOOL WINAPI DllMain(
 		break;
 
 	case DLL_PROCESS_DETACH:
+
+		OutputDebugString(L"DLL_PROCESS_DETACH in DllMain.\n");
+
+		DetourTransactionBegin();
+		DetourUpdateThread(GetCurrentThread());
+		DetourDetach(&(PVOID&)TrueSwapBuffers, DetouredSwapBuffers);
+		DetourTransactionCommit();
+
 		break;
 	}
 	return TRUE;
 }
 
-#ifdef __cplusplus    // If used by C++ code, 
-extern "C" {          // we need to export the C interface
-#endif
-
-__declspec(dllexport) int __cdecl TestFunc() {
-
-	OutputDebugString(L"TestFunc() called.\n");
-	return 42;
-}
-
-#ifdef __cplusplus
-}
-#endif
