@@ -1,17 +1,18 @@
 #include <iostream>
 #include <windows.h>
 #include <stdlib.h>
+#include <strsafe.h>
 #include <detour/include/detours.h>
 #include <glfw/include/GLFW/glfw3.h>
 
-static void (GLFWAPI * TrueSwapBuffers)(GLFWwindow * window) = glfwSwapBuffers;
+static BOOL(* TrueGlSwapLayerBuffers)(HDC dc, UINT params);
 
-void DetouredSwapBuffers(
-	GLFWwindow* window)
+void GlSwapLayerBuffers(
+	HDC dc, UINT params)
 {
-	OutputDebugString(L"DetouredSwapBuffers in Controller.\n");
+	OutputDebugString(L"[Controller] GlSwapLayerBuffers in Controller.\n");
 
-	TrueSwapBuffers(window);
+		TrueGlSwapLayerBuffers(dc, params);
 }
 
 BOOL WINAPI DllMain(
@@ -19,7 +20,9 @@ BOOL WINAPI DllMain(
 	DWORD fdwReason,
 	LPVOID lpReserved)
 {
-	OutputDebugString(L"DllMain called.\n");
+	OutputDebugString(L"[Controller] DllMain called.\n");
+
+	HMODULE openGlModule = {};
 
 	if (DetourIsHelperProcess()) {
 		return TRUE;
@@ -29,16 +32,53 @@ BOOL WINAPI DllMain(
 	{
 	case DLL_PROCESS_ATTACH:
 
-		OutputDebugString(L"DLL_PROCESS_ATTACH in DllMain.\n");
+		OutputDebugString(L"[Controller] DLL_PROCESS_ATTACH in DllMain.\n");
+
+		openGlModule = GetModuleHandle(L"opengl32.dll");
+
+		if (!openGlModule)
+		{
+			OutputDebugString(L"[Controller] Failed GetModuleHandle.\n");
+			return FALSE;
+		}
+		
+		TrueGlSwapLayerBuffers = (BOOL(__stdcall*)(HDC, UINT))GetProcAddress(openGlModule, "wglSwapBuffers");
+
+		if (!TrueGlSwapLayerBuffers)
+		{
+			OutputDebugString(L"[Controller] Failed GetProcAddress.\n");
+			return FALSE;
+		}
 
 		DetourRestoreAfterWith();
 
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)TrueSwapBuffers, DetouredSwapBuffers);
-		DetourTransactionCommit();
+		if (DetourTransactionBegin() != NO_ERROR)
+		{
+			OutputDebugString(L"[Controller] Error calling DetourTransactionBegin.\n");
+			return FALSE;
+		}
 
-		OutputDebugString(L"DetourAttach completed.\n");
+		if (DetourUpdateThread(GetCurrentThread()) != NO_ERROR)
+		{
+			OutputDebugString(L"[Controller] Error calling DetourUpdateThread.\n");
+			return FALSE;
+		}
+
+		// Attach detour for glfwSwapBuffers to DetouredSwapBuffers
+
+		if (DetourAttach(&(PVOID&)TrueGlSwapLayerBuffers, GlSwapLayerBuffers) != NO_ERROR)
+		{
+			OutputDebugString(L"[Controller] Error calling DetourAttach.\n");
+			return FALSE;
+		}
+		
+		if (DetourTransactionCommit() != NO_ERROR)
+		{
+			OutputDebugString(L"[Controller] Error calling DetourTransactionCommit.\n");
+			return FALSE;
+		}
+
+		OutputDebugString(L"[Controller] DetourAttach completed.\n");
 
 		break;
 
@@ -50,15 +90,14 @@ BOOL WINAPI DllMain(
 
 	case DLL_PROCESS_DETACH:
 
-		OutputDebugString(L"DLL_PROCESS_DETACH in DllMain.\n");
+		OutputDebugString(L"[Controller] DLL_PROCESS_DETACH in DllMain.\n");
 
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
-		DetourDetach(&(PVOID&)TrueSwapBuffers, DetouredSwapBuffers);
+		DetourDetach(&(PVOID&)TrueGlSwapLayerBuffers, GlSwapLayerBuffers);
 		DetourTransactionCommit();
 
 		break;
 	}
 	return TRUE;
 }
-

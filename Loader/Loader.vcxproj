@@ -182,6 +182,7 @@
     <ProjectReference Include="..\Controller\Controller.vcxproj">
       <Project>{cc38dc8f-5759-46b1-b663-068de9e1be96}</Project>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
+      <CopyLocalSatelliteAssemblies>true</CopyLocalSatelliteAssemblies>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
