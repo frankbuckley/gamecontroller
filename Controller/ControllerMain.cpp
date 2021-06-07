@@ -51,51 +51,51 @@ void GlSwapLayerBuffers(
 {
 	OutputDebugString(L"[Controller] GlSwapLayerBuffers in Controller.\n");
 
-	//if (window)
-	//{
-		//OutputDebugString(L"[Controller] Calling glfwPollEvents...\n");
+	if (window)
+	{
+		OutputDebugString(L"[Controller] Calling glfwPollEvents...\n");
 
-		//glfwPollEvents();
+		glfwPollEvents();
 
 		// Start the Dear ImGui frame
 
-		//OutputDebugString(L"[Controller] Calling ImGui_ImplOpenGL3_NewFrame...\n");
+		OutputDebugString(L"[Controller] Calling ImGui_ImplOpenGL3_NewFrame...\n");
 
-		//ImGui_ImplOpenGL3_NewFrame();
-		//ImGui_ImplGlfw_NewFrame();
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
 
-		//OutputDebugString(L"[Controller] Started ImGui frame.\n");
+		OutputDebugString(L"[Controller] Started ImGui frame.\n");
 
-		//ImGui::NewFrame();
-		//{
-		//	ImGui::Begin("BlackTeal Client");
+		ImGui::NewFrame();
+		{
+			ImGui::Begin("Adam's CHEAT Client");
 
-		//	ImGui::Checkbox("Fly", &fly);
-		//	ImGui::SameLine();
+			ImGui::Checkbox("Cheat lots", &fly);
+			ImGui::SameLine();
 
 
-		//	if (ImGui::Button("Unload Cheat"))
-		//		unload = true;
+			if (ImGui::Button("Unload Cheat"))
+				unload = true;
 
-		//	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-		//	ImGui::End();
-		//}
+			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+			ImGui::End();
+		}
 
-		//// Rendering
-		//ImGui::Render();
+		// Rendering
+		ImGui::Render();
 
-		//OutputDebugString(L"[Controller] Called ImGui::Render.\n");
+		OutputDebugString(L"[Controller] Called ImGui::Render.\n");
 
-		//int display_w, display_h;
+		int display_w, display_h;
 
-		//glfwGetFramebufferSize(window, &display_w, &display_h);
-		//glViewport(0, 0, display_w, display_h);
+		glfwGetFramebufferSize(window, &display_w, &display_h);
+		glViewport(0, 0, display_w, display_h);
 		//glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
 		//glClear(GL_COLOR_BUFFER_BIT);
-		//ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-		//glfwSwapBuffers(window);
-	//}
+		// glfwSwapBuffers(window);
+	}
 
 	TrueGlSwapLayerBuffers(dc, params);
 }
@@ -105,7 +105,7 @@ static void glfw_error_callback(int error, const char* description)
 	fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
-DWORD WINAPI InitImGui(LPVOID lpParam)
+DWORD WINAPI InitImGui()
 {
 	// Setup window
 	glfwSetErrorCallback(glfw_error_callback);
@@ -118,15 +118,27 @@ DWORD WINAPI InitImGui(LPVOID lpParam)
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
-	// Create window with graphics context
-	window = glfwCreateWindow(800, 600, "Hello World :D", NULL, NULL);
+	// HWND activeWindowHandle = GetActiveWindow();
 
-	if (window == NULL)
+	GLFWwindow* currentContext = glfwGetCurrentContext();
+
+	if (!currentContext)
 	{
+		OutputDebugString(L"No current (GLFW) context.\n");
 		return FALSE;
 	}
 
-	glfwMakeContextCurrent(window);
+	window = currentContext;
+
+	//// Create window with graphics context
+	// window = glfwCreateWindow(800, 600, "Hello World :D", NULL, currentContext);
+	//
+	//if (window == NULL)
+	//{
+	//	return FALSE;
+	//}
+	//
+	//glfwMakeContextCurrent(window);
 	glfwSwapInterval(1);
 
 	// Initialize OpenGL loader
@@ -141,13 +153,13 @@ DWORD WINAPI InitImGui(LPVOID lpParam)
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	//io = ImGui::GetIO(); (void)io;
+	io = ImGui::GetIO(); (void)io;
 
-	//ImGui::StyleColorsDark();
+	ImGui::StyleColorsDark();
 
-	//// Setup Platform/Renderer bindings
-	// ImGui_ImplGlfw_InitForOpenGL(window, true);
-	// ImGui_ImplOpenGL3_Init(glsl_version);
+	// Setup Platform/Renderer bindings
+	ImGui_ImplGlfw_InitForOpenGL(window, true);
+	ImGui_ImplOpenGL3_Init(glsl_version);
 
 	return TRUE;
 }
@@ -218,13 +230,11 @@ BOOL WINAPI DllMain(
 
 		OutputDebugString(L"[Controller] DetourAttach completed.\n");
 
-		CreateThread(
-			NULL,           // default security attributes
-			0,              // use default stack size  
-			InitImGui,      // thread function name
-			NULL,			// argument to thread function 
-			0,              // use default creation flags 
-			threadId);		// returns the thread identifier 
+		if (!InitImGui())
+		{
+			OutputDebugString(L"[Controller] InitImGui failed.\n");
+			return FALSE;
+		}
 
 		break;
 
